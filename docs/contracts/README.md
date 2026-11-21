@@ -1,39 +1,44 @@
-# Hợp đồng tích hợp — Phase 1 (Test Contract v1.0)
+# Hợp đồng tích hợp — Test Contract v1.2 (Phase 3)
 
-> Chốt ở kickoff P1. Đổi hợp đồng: báo cả nhóm, PR cần người khác duyệt, ghi lý do (ADR hoặc mục "Lịch sử thay đổi" cuối file).
-> Nguồn: PRD-0 mục C (inputs), E (output/sự kiện), F (luật), G (kho). Số liệu chỉ đọc từ `game.contract.json`.
+> Chốt ở kickoff P1 (v1.0), cập nhật v1.1 (P2) và **v1.2 (P3: kho cá thể + độ tươi)**. Đổi hợp đồng: báo cả nhóm, PR cần người khác duyệt, ghi lý do (ADR hoặc mục "Lịch sử thay đổi" cuối file).
+> Nguồn: PRD-0 mục C (inputs), E (output/sự kiện), F (luật), G (kho); TICKET-02, TICKET-03. Số liệu chỉ đọc từ `game.contract.json`.
 
-## 1. File kho (gather → quan) — PRD-0 mục G
+## 1. File kho (gather → quan) — PRD-0 mục G, TICKET-03
 
-**Schema**
+**Schema v1.2** (`contract_version: "1.2"`)
 
 ```json
-{"items": {"<kind>": <int ≥ 0>, ...}}
+{"items": [{"id": "I<n>", "kind": "<kind>", "fresh": <số 0..100>}, ...]}
 ```
 
 | Quy tắc | Chi tiết |
 |---|---|
-| Khóa gốc | chỉ có `items` (object). Thêm khóa khác → bên đọc từ chối (mã 2) |
-| `kind` hợp lệ | `ca_loc`, `ca_linh`, `bong_dien_dien`, `bong_sung` (`chonoi/inventory.py: KINDS_P1`). Kind lạ → mã 2 |
-| Giá trị | số nguyên không âm. Âm / số thực / bool / chuỗi → mã 2 |
-| Kind vắng | tính là 0. **Bên ghi bỏ khóa có lượng 0** |
-| Kho rỗng | `{"items":{}}` |
+| Khóa gốc | chỉ có `items` (**mảng**). Thêm khóa khác → bên đọc từ chối (mã 2) |
+| Mỗi cá thể | đúng 3 khóa `id, kind, fresh`. Thiếu / thừa khóa → mã 2 |
+| `id` | chuỗi không rỗng, **không trùng** trong file. Bên ghi dùng `I1, I2…` (cấp bởi `chonoi.fresh.ItemIds`) |
+| `kind` hợp lệ | danh mục nguyên liệu của contract (`chonoi/inventory.py`). Kind lạ → mã 2 |
+| `fresh` | số hữu hạn trong `[0, 100]`; ươn khi `fresh < tuning.freshness.spoiled_below` (30). Ươn vẫn là cá thể hợp lệ |
+| Thứ tự | bên ghi sắp theo id (`I2` trước `I10`) |
+| Kho rỗng | `{"items":[]}` |
 | Trần giỏ | `hold_capacity` **không** áp lên kho quán |
+| Kho đếm cũ | `{"items":{kind:n}}` khi chạy v1.2 → **mã 2** (v1.0/v1.1 vẫn đọc kho đếm, `inventory.read_inventory`) |
 
-**Ví dụ hợp lệ** (đúng kho của smoke test dock: giỏ `["ca_loc","bong_sung","bong_sung"]`)
+**Ví dụ hợp lệ** (giỏ 3 cá thể vừa hái, xem `inventory.sample.json`)
 
 ```json
-{"items":{"bong_sung":2,"ca_loc":1}}
+{"items":[{"id":"I1","kind":"ca_loc","fresh":100},{"id":"I2","kind":"bong_sung","fresh":100},{"id":"I3","kind":"bong_sung","fresh":100}]}
 ```
 
-**Ví dụ không hợp lệ (mã 2):** `{"items":{"ca_loc":-1}}` · `{"items":{"ca_tra":1}}` · `{"items":{"ca_loc":1.5}}` · `{"ca_loc":1}` · `{"items":{},"money":0}`
+**Ví dụ không hợp lệ (mã 2):** `{"items":{"ca_loc":1}}` · `{"items":[{"id":"I1","kind":"ca_tra","fresh":100}]}` · `{"items":[{"id":"I1","kind":"ca_loc","fresh":101}]}` · `{"items":[{"id":"I1","kind":"ca_loc"}]}` · hai cá thể cùng `id` · `{"items":[],"money":0}`
+
+**Độ tươi** (`tuning.freshness`, xem [clarify #27–#29](../clarify.md)): nội bộ lưu số nguyên `u`, 240 đơn vị / điểm (gather −2/tick = 0.5/s, quán −1/tick = 0.25/s, ươn khi `u < 7200`). Ra ngoài luôn qua `fresh.public()` → `fresh = u / 240`. JSONL làm tròn 3 chữ số; file kho ghi đủ chính xác.
 
 **Ai ghi / ai đọc / khi nào**
 
 | | Gather (ghi, `--inventory-out`) | Quán (đọc, `--inventory`) |
 |---|---|---|
 | Khi nào | đúng **một lần** khi có `gather_end` (`time` / `docked` / `fainted`) | lúc khởi tạo, trước khi ghi JSONL |
-| Nội dung | khớp object `inventory` trong event `gather_end`; ngất → `{"items":{}}` | thành `stock` (gồm cả phần sẽ giữ chỗ) |
+| Nội dung | khớp object `inventory` trong event `gather_end` (id, kind; fresh ±0.01 do JSONL làm tròn); ngất → `{"items":[]}` | thành `stock` cá thể, giữ nguyên id và độ tươi (gồm cả phần sẽ giữ chỗ) |
 | Chạm `--ticks` trước khi kết thúc | **không** tạo và không ghi đè file | — |
 | Cách ghi | file tạm cùng thư mục → thay thế nguyên tử (`inventory.write_inventory`) | — |
 | Thiếu file | — | thiếu cả `--inventory` lẫn `scenario.quan.stock` → kho rỗng; khai **cả hai** → mã 2 |
@@ -57,8 +62,9 @@ UI (P1: `chonoi.live`) **chỉ đọc snapshot** và **chỉ gửi lệnh qua `I
 | Mode | Trường | HUD tối thiểu dùng |
 |---|---|---|
 | chung | `tick, sim_tick, mode, phase, phase_tick, state, time_left_ticks, money, earned, reputation, score` | thời gian, tiền, uy tín |
-| gather | `player{pos, vel, heading_deg, oxygen_ticks, hp, zero_oxy_ticks, catch_cd_ticks, oxygen_max_ticks, hp_max, at_surface}`, `hold, hold_count, hold_capacity, nodes[]{…, ready}, fish[]` | oxy, Máu, giỏ |
-| quan | `player{pos, vel}, stock, hand, stoves[]{id, pos, state, dish, cook_ticks_left, ready_ticks}, tables[]{id, pos, customer_id}, customers[]{…}` (chỉ khách còn ngồi) | kho khả dụng, món gọi, kiên nhẫn, trạng thái bếp, món trên tay |
+| gather | `player{pos, vel, heading_deg, oxygen_ticks, hp, zero_oxy_ticks, catch_cd_ticks, oxygen_max_ticks, hp_max, at_surface}`, `hold` (mảng cá thể `{id,kind,fresh}` theo thứ tự vào giỏ), `hold_count, hold_capacity, nodes[]{…, ready}, fish[]` | oxy, Máu, giỏ, độ tươi |
+| quan | `player{pos, vel}, stock` (mảng cá thể theo id, **gồm cả hàng ươn**), `hand, stoves[]{id, pos, state, dish, cook_ticks_left, ready_ticks}, tables[]{id, pos, customer_id}, customers[]{…, order_status, reserved: [id…]}` (chỉ khách còn ngồi) | kho khả dụng, độ tươi, hàng đang giữ chỗ, món gọi, kiên nhẫn, trạng thái bếp, món trên tay |
+| day / shop | `day, day_plan, upgrades, active_upgrades`; Shop có `stock` (kho lúc vào Shop, mảng cá thể) | Ngày, kế hoạch, cấp |
 
 Điểm: `score = earned + reputation_multiplier × floor(reputation)`.
 
@@ -73,7 +79,9 @@ Event được phát tại tick `k+1` của bước `k`, theo thứ tự xử l�
 | `dive` / `surface` | `pos` (sau di chuyển) | đổi phía biên mặt nước (`d > 0.5` ↔ `d ≤ 0.5`) |
 | `oxygen_empty` | `oxygen_ticks: 0` | oxy vừa từ dương xuống 0 |
 | `choke` | `hp` (sau trừ) | `zero_oxy_ticks` đủ 60 |
-| `faint` | `cause: "choke", lost, hp: 0` | Máu về 0; `lost` theo LIFO (nhặt sau bỏ trước) |
+| `faint` | `cause` (`choke`/`monster`), `lost` (mảng cá thể), `hp: 0` | Máu về 0; `lost` theo LIFO (vào giỏ sau bỏ trước) |
+| `monster_hit` | `monster_id, hp, lost` (mảng cá thể, LIFO), `pos` | Cá Sấu chạm (v1.1) |
+| `spoiled` | `item_id, kind, location: "hold"` | cá thể trong giỏ vừa qua ngưỡng ươn (một lần / cá thể, theo id) |
 | `gather` | `node_id, kind, amount` | hái thành công |
 | `node_regrown` | `node_id` | `regrow_ticks` 1 → 0 |
 | `hold_full` | `action` (`gather`/`catch`), `node_id` hoặc `fish_id`, `required, free` | thiếu chỗ trong giỏ |
@@ -86,7 +94,8 @@ Event được phát tại tick `k+1` của bước `k`, theo thứ tự xử l�
 |---|---|---|
 | `customer_arrived` | `order_id, table_id, dish_id` | khách mới ngồi + giữ chỗ |
 | `no_dish` | `{}` | có bàn trống nhưng không món nào đủ nguyên liệu khả dụng |
-| `cook_started` | `stove_id, order_id, dish_id, items` (sắp theo kind), `base_price` | bếp idle nhận đơn reserved cũ nhất |
+| `spoiled` | `item_id, kind, location: "stock"` | cá thể trong kho vừa qua ngưỡng ươn; đơn đang giữ nó nhả và giữ lại một lần, không đủ → `order_status: unfulfillable` |
+| `cook_started` | `stove_id, order_id, dish_id, items` (mảng cá thể, sắp theo kind rồi id), `base_price` = `floor(giá × fresh trung bình / 100)` | bếp idle nhận đơn reserved cũ nhất |
 | `dish_ready` | `stove_id, order_id, dish_id` | nấu xong |
 | `dish_picked` | `stove_id, order_id, dish_id` | bưng món lên tay trống |
 | `served` | `order_id, table_id, dish_id, patience_ticks_left, base_price, tip` | giao đúng bàn |
@@ -99,17 +108,19 @@ Dòng cuối JSONL luôn là `{"type":"end", ticks, sim_tick, mode, state, reaso
 ## 4. Smoke tích hợp (phải xanh trước khi tag)
 
 ```bash
-# dock.json: {"gather":{"hold":["ca_loc","bong_sung","bong_sung"]}}
+# dock.json (TICKET-03): {"gather":{"hold":[{"id":"I1","kind":"ca_linh","fresh":100}],"random_fish":false,"monsters":[]}}
 # dock-inputs.json: {"frames":[{"tick":0,"interact":true}]}
 python3 -m chonoi.headless --mode gather --seed 42 --scenario dock.json --inputs dock-inputs.json --ticks 1 --out gather.jsonl --inventory-out catch.json
 python3 -m chonoi.headless --mode quan --seed 42 --inventory catch.json --ticks 0 --out quan.jsonl
-# kỳ vọng: snapshot quán tick 0 có "stock":{"bong_sung":2,"ca_loc":1}
+# kỳ vọng: catch.json = {"items":[{"id":"I1","kind":"ca_linh","fresh":99.99166…}]} (hao 1 bước gather)
+#          snapshot quán tick 0 có "stock":[{"id":"I1","kind":"ca_linh","fresh":99.992}]
 ```
 
-Đã có sẵn trong `tests/test_smoke_p1.py`.
+Đã có sẵn trong `tests/test_smoke_p1.py` (`test_inv_01_*`), `tests/test_gather_fresh.py` (`test_fr09`) và `tools/proof_p3.py`.
 
 ## Lịch sử thay đổi
 
 | Ngày | Đổi gì | Lý do | Ai duyệt |
 |---|---|---|---|
 | 2026-11-21 | Bản đầu (P1) | kickoff | Khuê (Integrator) |
+| 2026-11-21 | v1.2: file kho, `hold`, `stock`, `reserved`, `lost`, `cook_started.items` thành cá thể `{id,kind,fresh}`; thêm event `spoiled`, `tuning.freshness` | TICKET-03 (độ tươi); PR #22, #23, #25, #26, #27 | Khuê (Integrator); Phong, Khánh code theo |
