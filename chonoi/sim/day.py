@@ -13,11 +13,10 @@ Giả định đã chốt (ghi ở docs/clarify.md):
 """
 
 import copy
-import inspect
 
 from ..contract import DAYS, plan_ingredients
 from ..errors import BadInput
-from ..fresh import Freshness, ItemIds, by_id, new_item, public
+from ..fresh import Freshness, ItemIds, by_id, public
 from ..ids import IdAllocator
 from .gather import GatherSim
 from .quan import QuanSim
@@ -116,24 +115,19 @@ class DaySim:
         self.active = dict(self.upgrades)
         self._phase = "gather"
         self.phase_tick = 0
-        kw = {"day": self.day}
-        if "item_ids" in inspect.signature(GatherSim.__init__).parameters:  # TODO(Phong merge): gọi thẳng, bỏ inspect
-            kw["item_ids"] = self.item_ids
         scn = self.gather_scn
         if self.day > 1 and scn.get("hold"):
             # từ Ngày 2 giỏ dựng sẵn là cá thể MỚI: id mới theo thứ tự mảng (PRD), id I* không lặp lại
             scn = dict(scn, hold=[dict(it, id=self.item_ids.new()) for it in scn["hold"]])
-        self.sub = GatherSim(self._day_tuning(), scn, self.rng, IdAllocator(), **kw)
+        self.sub = GatherSim(self._day_tuning(), scn, self.rng, IdAllocator(),
+                              day=self.day, item_ids=self.item_ids)
         events += [("day_start", {}, "gather", self.day),
                    ("day_plan", copy.deepcopy(self.plan), "gather", self.day),
                    ("phase_start", {}, "gather", self.day)]
 
     def _hand_over(self):
-        """Giỏ lúc gather_end -> kho quán: cá thể nguyên vẹn (id, độ tươi). Giỏ còn dạng kind (gather chưa sang
-        v1.2) thì cấp cá thể mới fresh 100. TODO(Phong merge): bỏ nhánh chuỗi."""
-        out = []
-        for it in self.sub.hold:
-            out.append(new_item(self.item_ids, it, self.fresh) if isinstance(it, str) else dict(it))
+        """Giỏ lúc gather_end -> kho quán: cá thể nguyên vẹn (id, độ tươi) do gather v1.2 cấp."""
+        out = [dict(it) for it in self.sub.hold]
         self.item_ids.reserve_all(out)
         return out
 
