@@ -182,7 +182,8 @@ class Movement(unittest.TestCase):
 
     def test_time_ends_gather_and_keeps_hold(self):
         with Workdir() as w:
-            sc = write_json(w.path("sc.json"), {"gather": {"hold": ["ca_loc"], "time_left_ticks": 3,
+            sc = write_json(w.path("sc.json"), {"gather": {"hold": [{"id": "I1", "kind": "ca_loc", "fresh": 100}],
+                                                           "time_left_ticks": 3,
                                                            "player": {"pos": [50, 10]}}})
             inv = w.path("inv.json")
             code, err = run_headless("--mode", "gather", "--seed", "1", "--ticks", "100", "--scenario", sc,
@@ -194,15 +195,16 @@ class Movement(unittest.TestCase):
             self.assertEqual(end_ev[0]["tick"], 3)
             self.assertEqual(end_ev[0]["data"]["reason"], "time")
             self.assertEqual(rows[-1]["reason"], "time")
-            with open(inv, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {"ca_loc": 1}})
+            with open(inv, encoding="utf-8") as f:  # v1.2: cá thể, hao 3 bước × 1/120
+                self.assertEqual(json.load(f), {"items": [{"id": "I1", "kind": "ca_loc", "fresh": 99.975}]})
 
 
 class Integration(unittest.TestCase):
     def test_inv_01_gather_writes_inventory_quan_reads_it(self):
-        """Ví dụ smoke test trong PRD-0 mục G: cập bến ở tick 0, quán đọc kho đúng nội dung."""
+        """Smoke bàn giao (TICKET-03): cập bến ở tick 0, quán đọc đúng id, kind, độ tươi sau 1 lần hao ở gather."""
+        hold = [{"id": f"I{i + 1}", "kind": k, "fresh": 100} for i, k in enumerate(["ca_loc", "bong_sung", "bong_sung"])]
         with Workdir() as w:
-            sc = write_json(w.path("sc.json"), {"gather": {"hold": ["ca_loc", "bong_sung", "bong_sung"]}})
+            sc = write_json(w.path("sc.json"), {"gather": {"hold": hold}})
             inp = write_json(w.path("in.json"), frames({"tick": 0, "interact": True}))
             inv = w.path("inv.json")
             code, err = run_headless("--mode", "gather", "--seed", "42", "--ticks", "1", "--scenario", sc,
@@ -210,14 +212,24 @@ class Integration(unittest.TestCase):
             self.assertEqual(code, 0, err)
             with open(inv, encoding="utf-8") as f:
                 saved = json.load(f)
-            self.assertEqual(saved, {"items": {"bong_sung": 2, "ca_loc": 1}})
+            self.assertEqual([(it["id"], it["kind"]) for it in saved["items"]],
+                             [("I1", "ca_loc"), ("I2", "bong_sung"), ("I3", "bong_sung")])
+            for it in saved["items"]:
+                self.assertAlmostEqual(it["fresh"], 100 - 1 / 120, places=9)  # hao đúng 1 bước gather
             end = events(read_jsonl(w.path("r.jsonl")), "gather_end")[0]["data"]
             self.assertEqual(end["reason"], "docked")
-            self.assertEqual(end["inventory"], saved)
+            # cùng schema; JSONL làm tròn 3 chữ số (dung sai quan sát ±0.01), file kho giữ đủ chính xác
+            self.assertEqual([(i["id"], i["kind"]) for i in end["inventory"]["items"]],
+                             [(i["id"], i["kind"]) for i in saved["items"]])
+            for a, b in zip(end["inventory"]["items"], saved["items"]):
+                self.assertAlmostEqual(a["fresh"], b["fresh"], delta=0.01)
             code, err = run_headless("--mode", "quan", "--seed", "42", "--ticks", "0", "--inventory", inv,
                                      "--out", w.path("q.jsonl"))
             self.assertEqual(code, 0, err)
-            self.assertEqual(snapshots(read_jsonl(w.path("q.jsonl")))[0]["stock"], {"bong_sung": 2, "ca_loc": 1})
+            stock = snapshots(read_jsonl(w.path("q.jsonl")))[0]["stock"]
+            self.assertEqual([(i["id"], i["kind"]) for i in stock], [(i["id"], i["kind"]) for i in saved["items"]])
+            for a, b in zip(stock, saved["items"]):  # snapshot làm tròn 3 chữ số: dung sai quan sát ±0.01 (PRD)
+                self.assertAlmostEqual(a["fresh"], b["fresh"], delta=0.01)
 
     def test_inv_01_not_written_when_tick_limit_first(self):
         with Workdir() as w:

@@ -8,9 +8,9 @@ from chonoi.ids import IdAllocator
 from chonoi.rng import Streams
 from chonoi.sim.gather import GatherSim
 from helpers import Workdir, events
-from test_gather_lat1 import run_gather, snap_at, tuning_gather
+from test_gather_lat1 import ik, items, run_gather, snap_at, tuning_gather
 
-HOLD4 = ["ca_loc", "bong_sung", "ca_linh", "bong_sung"]
+HOLD4 = items("ca_loc", "bong_sung", "ca_linh", "bong_sung")  # I1..I4 (v1.2: cá thể)
 
 
 def croc_at(x, d):
@@ -43,11 +43,13 @@ class GatherMonsters(unittest.TestCase):
         t = tuning_gather()
         with Workdir() as w:
             rows = run_gather(w, deep(), ticks=1)
-            self.assertEqual([(e["tick"], e["data"]) for e in events(rows, "monster_hit")],
-                             [(1, {"monster_id": "M1", "hp": t["hp_max"] - 1, "lost": ["bong_sung", "ca_linh"],
-                                   "pos": [62.0, 24.0]})])
+            hits = events(rows, "monster_hit")
+            self.assertEqual([e["tick"] for e in hits], [1])
+            d = hits[0]["data"]
+            self.assertEqual((d["monster_id"], d["hp"], d["pos"]), ("M1", t["hp_max"] - 1, [62.0, 24.0]))
+            self.assertEqual(ik(d["lost"]), [("I4", "bong_sung"), ("I3", "ca_linh")])  # LIFO theo thứ tự vào giỏ
             s = snap_at(rows, 1)
-            self.assertEqual(s["hold"], ["ca_loc", "bong_sung"])
+            self.assertEqual(ik(s["hold"]), [("I1", "ca_loc"), ("I2", "bong_sung")])
             self.assertEqual(s["player"]["hp"], t["hp_max"] - 1)
             self.assertEqual(s["player"]["invuln_ticks"], t["monsters"]["invuln_ticks"])
             self.assertEqual(s["monsters"][0]["state"], "recoil")
@@ -62,19 +64,22 @@ class GatherMonsters(unittest.TestCase):
             inv = w.path("inv.json")
             rows = run_gather(w, deep(hp=1), ticks=5, inventory_out=inv)
             self.assertEqual(names(rows), [(1, "monster_hit"), (1, "faint"), (1, "gather_end")])
-            self.assertEqual(events(rows, "faint")[0]["data"], {"cause": "monster", "lost": ["bong_sung", "ca_loc"],
-                                                                "hp": 0})
+            d = events(rows, "faint")[0]["data"]
+            self.assertEqual((d["cause"], d["hp"]), ("monster", 0))
+            self.assertEqual(ik(d["lost"]), [("I2", "bong_sung"), ("I1", "ca_loc")])
             self.assertEqual(events(rows, "gather_end")[0]["data"], {"reason": "fainted",
-                                                                     "inventory": {"items": {}}})
+                                                                     "inventory": {"items": []}})
             with open(inv, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {}})
+                self.assertEqual(json.load(f), {"items": []})
 
     def test_m06_hit_before_catch_same_step(self):
         block = {**deep(), "fish": [{"id": "F1", "kind": "ca_keo", "pos": [63, 24]}]}
         with Workdir() as w:
             rows = run_gather(w, block, [{"tick": 0, "catch": True}], ticks=1)
             self.assertEqual(names(rows), [(1, "monster_hit"), (1, "fish_caught")])
-            self.assertEqual(snap_at(rows, 1)["hold"], ["ca_loc", "bong_sung", "ca_keo", "ca_keo"])
+            # id mới nối tiếp id lớn nhất trong giỏ (I4), kể cả khi I3, I4 vừa rơi
+            self.assertEqual(ik(snap_at(rows, 1)["hold"]),
+                             [("I1", "ca_loc"), ("I2", "bong_sung"), ("I5", "ca_keo"), ("I6", "ca_keo")])
 
 
 if __name__ == "__main__":

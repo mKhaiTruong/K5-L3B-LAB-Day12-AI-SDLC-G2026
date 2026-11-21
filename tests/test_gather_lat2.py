@@ -4,7 +4,7 @@ import json
 import unittest
 
 from helpers import Workdir, events
-from test_gather_lat1 import run_gather, snap_at, tuning_gather
+from test_gather_lat1 import ik, items, run_gather, snap_at, tuning_gather
 
 E0 = [{"tick": 0, "interact": True}]
 BASE = {"player": {"pos": [20, 0]}, "fish": [], "random_fish": False}
@@ -27,12 +27,13 @@ class Lat2Gather(unittest.TestCase):
         t = tuning_gather()
         r = t["interact_radius"]
         with Workdir() as w:
-            rows = run_gather(w, {**BASE, "hold": ["ca_loc", "bong_sung"],
+            rows = run_gather(w, {**BASE, "hold": items("ca_loc", "bong_sung"),
                                   "nodes": [node("N1", "bong_dien_dien", 20 + r)]}, E0, ticks=1)
             self.assertEqual(ev_list(rows), [(1, "gather", {"node_id": "N1", "kind": "bong_dien_dien",
                                                             "amount": t["node_yield"]})])
             s = snap_at(rows, 1)
-            self.assertEqual(s["hold"], ["ca_loc", "bong_sung"] + ["bong_dien_dien"] * t["node_yield"])
+            self.assertEqual(ik(s["hold"]), [("I1", "ca_loc"), ("I2", "bong_sung")]
+                             + [(f"I{3 + i}", "bong_dien_dien") for i in range(t["node_yield"])])
             n1 = [n for n in s["nodes"] if n["id"] == "N1"][0]
             self.assertIs(n1["ready"], False)
             self.assertEqual(n1["regrow_ticks"], regrow_ticks())
@@ -46,7 +47,7 @@ class Lat2Gather(unittest.TestCase):
     def test_l2_03_hold_full_keeps_node(self):
         cap = tuning_gather()["hold_capacity"]
         with Workdir() as w:
-            rows = run_gather(w, {**BASE, "hold": ["ca_loc"] * cap, "nodes": [node("N1", "bong_sung", 21)]},
+            rows = run_gather(w, {**BASE, "hold": items(*["ca_loc"] * cap), "nodes": [node("N1", "bong_sung", 21)]},
                               E0, ticks=1)
             self.assertEqual(ev_list(rows), [(1, "hold_full", {"action": "gather", "node_id": "N1",
                                                                "required": tuning_gather()["node_yield"],
@@ -81,9 +82,10 @@ class Lat2Gather(unittest.TestCase):
                               E0, ticks=5, inventory_out=kho)
             evs = ev_list(rows)
             self.assertEqual([(t, n) for t, n, _ in evs], [(1, "gather"), (1, "gather_end")])
-            self.assertEqual(evs[1][2], {"reason": "time", "inventory": {"items": {"bong_sung": 1}}})
+            want = {"items": [{"id": "I1", "kind": "bong_sung", "fresh": 100.0}]}  # hái ở bước cuối: chưa hao
+            self.assertEqual(evs[1][2], {"reason": "time", "inventory": want})
             with open(kho, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {"bong_sung": 1}})
+                self.assertEqual(json.load(f), want)
 
     def test_l2_07_second_press_on_regrowing_node(self):
         frames_in = [{"tick": 0, "interact": True}, {"tick": 1, "interact": False}, {"tick": 2, "interact": True}]
@@ -100,9 +102,11 @@ class Lat2Gather(unittest.TestCase):
                                   "nodes": [node("N1", "bong_sung", 7)]}, frames_in, ticks=60, inventory_out=kho)
             evs = ev_list(rows, "gather", "gather_end")
             self.assertEqual([(t, n) for t, n, _ in evs], [(1, "gather"), (31, "gather_end")])
-            self.assertEqual(evs[1][2], {"reason": "docked", "inventory": {"items": {"bong_sung": 1}}})
+            # hái ở bước 0, hao ở 30 bước 1..30 (0.5/s = 1/120 mỗi tick) rồi cập bến ở bước 30
+            want = {"items": [{"id": "I1", "kind": "bong_sung", "fresh": 99.75}]}
+            self.assertEqual(evs[1][2], {"reason": "docked", "inventory": want})
             with open(kho, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {"bong_sung": 1}})
+                self.assertEqual(json.load(f), want)
             self.assertEqual(rows[-1]["reason"], "docked")
 
 
@@ -129,7 +133,7 @@ class Lat2Catch(unittest.TestCase):
             rows = run_gather(w, {**CB, "fish": [fish("F1", "ca_linh", 21, 5)]}, catch_frames((0, True)), ticks=1)
             self.assertEqual(ev_list(rows), [(1, "fish_caught", {"fish_id": "F1", "kind": "ca_linh", "yield": y})])
             s = snap_at(rows, 1)
-            self.assertEqual(s["hold"], ["ca_linh"] * y)
+            self.assertEqual(s["hold"], [{"id": f"I{i + 1}", "kind": "ca_linh", "fresh": 100.0} for i in range(y)])
             self.assertEqual(s["fish"], [])
             self.assertEqual(s["player"]["catch_cd_ticks"], int(round(t["catch_cooldown_s"] * 60)))
 
@@ -160,7 +164,7 @@ class Lat2Catch(unittest.TestCase):
         y = t["fish_yield"]["ca_linh"]
         free = y - 1
         with Workdir() as w:
-            rows = run_gather(w, {**CB, "hold": ["bong_sung"] * (t["hold_capacity"] - free),
+            rows = run_gather(w, {**CB, "hold": items(*["bong_sung"] * (t["hold_capacity"] - free)),
                                   "fish": [fish("F1", "ca_linh", 21, 5), fish("F2", "ca_loc", 18.5, 5)]},
                               catch_frames((0, True)), ticks=1)
             self.assertEqual(ev_list(rows), [(1, "hold_full", {"action": "catch", "fish_id": "F1",

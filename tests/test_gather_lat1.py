@@ -25,6 +25,16 @@ def run_gather(w, block, frame_list=None, ticks=10, inventory_out=None):
     return read_jsonl(w.path("o.jsonl"))
 
 
+def items(*kinds, start=1, fresh=100):
+    """Cá thể fixture (contract v1.2): I{start}, I{start+1}, … theo thứ tự vào giỏ."""
+    return [{"id": f"I{start + i}", "kind": k, "fresh": fresh} for i, k in enumerate(kinds)]
+
+
+def ik(arr):
+    """(id, kind) của mảng cá thể — dùng khi test không xét độ tươi."""
+    return [(it["id"], it["kind"]) for it in arr]
+
+
 def snap_at(rows, tick):
     return [s for s in snapshots(rows) if s["tick"] == tick][-1]
 
@@ -124,18 +134,20 @@ class Lat1ChokeFaint(unittest.TestCase):
             inv = w.path("inv.json")
             rows = run_gather(w, {"player": {"pos": [50, 10], "oxygen_ticks": 0, "hp": 1,
                                              "zero_oxy_ticks": t["choke_interval_ticks"] - 1},
-                                  "hold": ["ca_loc", "bong_sung"]}, ticks=5, inventory_out=inv)
+                                  "hold": items("ca_loc", "bong_sung")}, ticks=5, inventory_out=inv)
             evs = events(rows)
             self.assertEqual([e["name"] for e in evs], ["choke", "faint", "gather_end"])
             self.assertEqual({e["tick"] for e in evs}, {1})
-            self.assertEqual(evs[1]["data"], {"cause": "choke", "lost": ["bong_sung", "ca_loc"], "hp": 0})
-            self.assertEqual(evs[2]["data"], {"reason": "fainted", "inventory": {"items": {}}})
+            d = evs[1]["data"]
+            self.assertEqual((d["cause"], d["hp"]), ("choke", 0))
+            self.assertEqual(ik(d["lost"]), [("I2", "bong_sung"), ("I1", "ca_loc")])  # LIFO, cá thể (v1.2)
+            self.assertEqual(evs[2]["data"], {"reason": "fainted", "inventory": {"items": []}})
             end = rows[-1]
             self.assertEqual(end["type"], "end")
             self.assertEqual(end["ticks"], 1)
             self.assertEqual(end["reason"], "fainted")
             with open(inv, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {}})
+                self.assertEqual(json.load(f), {"items": []})
             last = snapshots(rows)[-1]
             self.assertEqual(last["hold"], [])
             self.assertEqual(last["state"], "finished")

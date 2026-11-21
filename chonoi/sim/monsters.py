@@ -4,7 +4,7 @@ Cách gather.py dùng (mỗi bước, SAU khi người chơi bơi + oxy/ngạt):
 
     hit = self.monsters.step(self.pos)                 # di chuyển theo id rồi chọn tối đa một con chạm
     if hit and self.invuln_ticks == 0:
-        lost = self.monsters.apply_hit(hit, self.pos, self.hold)   # recoil + trả mảng kind mất (LIFO)
+        lost = self.monsters.apply_hit(hit, self.pos, self.hold)   # recoil + trả mảng cá thể mất (LIFO)
         self.hp -= 1; self.invuln_ticks = self.monsters.invuln_ticks
         events.append(("monster_hit", {"monster_id": hit["id"], "hp": self.hp, "lost": lost,
                                        "pos": list(self.pos)}))
@@ -16,6 +16,7 @@ Snapshot: `self.monsters.snapshot()` -> danh sách theo id.
 
 import math
 
+from ..fresh import lifo_drop
 from ..ids import sort_by_id
 
 TICK = 60.0
@@ -116,10 +117,10 @@ class MonsterSet:
         Args:
             m: con trả về từ `step`.
             player_pos: vị trí người chơi lúc chạm.
-            hold: giỏ (mảng kind theo thứ tự nhặt), bị sửa tại chỗ.
+            hold: giỏ (mảng cá thể nội bộ `{id,kind,u}` theo thứ tự vào giỏ), bị sửa tại chỗ.
 
         Returns:
-            Mảng kind đã mất, nhặt sau mất trước, vd `["bong_sung", "ca_loc"]`.
+            Mảng cá thể đã mất dạng `{id,kind,fresh}`, vào giỏ sau mất trước (contract v1.2).
         """
         sp = self.species[m["kind"]]
         dx, dd = m["pos"][0] - player_pos[0], m["pos"][1] - player_pos[1]
@@ -127,8 +128,7 @@ class MonsterSet:
         m.update(state="recoil", state_ticks_left=sp["recoil_ticks"],
                  recoil_dir=[dx / n, dd / n] if n > 0 else [1.0, 0.0])
         k = math.floor(len(hold) * self.loss_ratio)
-        lost = [hold.pop() for _ in range(k)]
-        return lost
+        return lifo_drop(hold, k)
 
     def snapshot(self):
         """Danh sách thủy quái cho snapshot, theo id (trường theo scenario v1.1 mục 4.3)."""

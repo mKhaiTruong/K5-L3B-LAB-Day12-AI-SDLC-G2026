@@ -1,4 +1,4 @@
-"""Test chế độ day (contract v1.1): vòng ngày, Shop, pause, scenario day, CLI --days."""
+"""Test chế độ day (contract v1.1, kho cá thể từ v1.2): vòng ngày, Shop, pause, scenario day, CLI --days."""
 
 import json
 import os
@@ -17,6 +17,11 @@ def tuning():
         return json.load(f)["tuning"]
 
 
+def hold_of(*kinds, fresh=100):
+    """Giỏ cá thể v1.2: id I1, I2… theo thứ tự khai."""
+    return [{"id": f"I{i}", "kind": k, "fresh": fresh} for i, k in enumerate(kinds, 1)]
+
+
 def idle(**kw):
     edges = {k for k, v in kw.items() if v is True and k != "buy"}
     return InputState((0.0, 0.0), {}, edges, kw.get("buy"))
@@ -24,7 +29,7 @@ def idle(**kw):
 
 def fast(money=300, extra_gather=None, extra_quan=None, **day):
     """Scenario day: Út Sen đang ở bến (docked ở tick 1), giỏ có sẵn, không khách ngẫu nhiên."""
-    g = {"hold": ["ca_loc", "bong_sung", "bong_sung"], "random_fish": False, "player": {"pos": [2, 0]}}
+    g = {"hold": hold_of("ca_loc", "bong_sung", "bong_sung"), "random_fish": False, "player": {"pos": [2, 0]}}
     g.update(extra_gather or {})
     q = {"random_customers": False, "time_left_ticks": 5}
     q.update(extra_quan or {})
@@ -56,7 +61,11 @@ class DayFlow(unittest.TestCase):
         ev = s.step(idle(interact=True))
         self.assertEqual([e["name"] for e in ev], ["gather_end", "phase_start"])
         self.assertEqual((ev[0]["phase"], ev[1]["phase"]), ("gather", "quan"))
-        self.assertEqual(s.sim.sub.stock, {"bong_sung": 2, "ca_loc": 1})  # kho quán = giỏ lúc gather_end
+        # kho quán = giỏ lúc gather_end: cá thể nguyên vẹn (id giữ nguyên), hao 1 đơn vị/tick từ khi vào quán
+        self.assertEqual([(it["id"], it["kind"]) for it in s.sim.sub.stock],
+                         [("I1", "ca_loc"), ("I2", "bong_sung"), ("I3", "bong_sung")])
+        # bước cập bến gather vẫn hao hàng có sẵn 1 lần (2 đơn vị) trước khi bàn giao; quán không trừ thêm lúc bàn giao
+        self.assertEqual({it["u"] for it in s.sim.sub.stock}, {23998})
         snap = s.snapshot()
         self.assertEqual((snap["phase"], snap["phase_tick"], snap["day"]), ("quan", 0, 1))
         for _ in range(4):
@@ -64,15 +73,17 @@ class DayFlow(unittest.TestCase):
         ev = s.step(idle())
         self.assertEqual([e["name"] for e in ev], ["quan_end", "phase_start"])
         self.assertEqual((ev[0]["phase"], ev[1]["phase"]), ("quan", "shop"))
-        self.assertEqual(s.snapshot()["stock"], {"bong_sung": 2, "ca_loc": 1})
+        stock = s.snapshot()["stock"]  # 2 đơn vị hao ở gather + 5 bước trong quán; Shop không hao
+        self.assertEqual([x["id"] for x in stock], ["I1", "I2", "I3"])
+        self.assertEqual({x["fresh"] for x in stock}, {100 - 7 / 240})
 
     def test_faint_gives_empty_stock(self):
-        sc = fast(extra_gather={"hold": ["ca_loc"], "player": {"pos": [50, 25], "hp": 1, "oxygen_ticks": 0}})
+        sc = fast(extra_gather={"hold": hold_of("ca_loc"), "player": {"pos": [50, 25], "hp": 1, "oxygen_ticks": 0}})
         s = Session("day", tuning(), sc, 1, days=1)
         ev = []
         while not ev or ev[-1]["name"] != "phase_start":
             ev = s.step(idle())
-        self.assertEqual(s.sim.sub.stock, {})
+        self.assertEqual(s.sim.sub.stock, [])
 
     def test_money_earned_reputation_carry_over(self):
         sc = fast(money=150, reputation=4.0)
@@ -83,7 +94,7 @@ class DayFlow(unittest.TestCase):
 
     def test_quan_menu_filtered_by_plan(self):
         # Ngày 1 chỉ có ca_loc_nuong_trui + goi_bong_sung; kho đủ lẩu cá linh nhưng khách không gọi
-        sc = fast(extra_gather={"hold": ["ca_linh"] * 3 + ["bong_dien_dien"]},
+        sc = fast(extra_gather={"hold": hold_of("ca_linh", "ca_linh", "ca_linh", "bong_dien_dien")},
                   extra_quan={"random_customers": True, "time_left_ticks": 130})
         s = Session("day", tuning(), sc, 1, days=1)
         s.step(idle(interact=True))
@@ -91,6 +102,20 @@ class DayFlow(unittest.TestCase):
         for _ in range(125):
             evs += s.step(idle())
         self.assertEqual([e["name"] for e in evs if e["name"] in ("customer_arrived", "no_dish")], ["no_dish"])
+
+
+class ItemIdsAcrossDays(unittest.TestCase):
+    def test_day2_prebuilt_hold_gets_new_ids_in_array_order(self):
+        sc = fast(extra_gather={"hold": hold_of("ca_loc", "bong_sung")})
+        s = Session("day", tuning(), sc, 1, days=2)
+        d1 = [it["id"] for it in s.sim.sub.hold]
+        to_shop(s)
+        s.step(idle(shop_done=True))  # sang Ngày 2
+        self.assertEqual(s.sim.day, 2)
+        d2 = [it["id"] for it in s.sim.sub.hold]
+        self.assertEqual(d1, ["I1", "I2"])
+        self.assertEqual(d2, ["I3", "I4"])  # mới, theo thứ tự mảng, không trùng id Ngày 1
+        self.assertEqual([it["kind"] for it in s.sim.sub.hold], ["ca_loc", "bong_sung"])
 
 
 class Shop(unittest.TestCase):
@@ -216,7 +241,7 @@ class Scenario(unittest.TestCase):
 
     def test_forbidden_and_bad(self):
         bads = [
-            {"quan": {"stock": {"ca_loc": 1}}},
+            {"quan": {"stock": [{"id": "I1", "kind": "ca_loc", "fresh": 100}]}},
             {"quan": {"reputation": 3.0}},
             {"day": {"money": 10, "earned": 5}},
             {"day": {"upgrades": {"oxygen": 3}}},

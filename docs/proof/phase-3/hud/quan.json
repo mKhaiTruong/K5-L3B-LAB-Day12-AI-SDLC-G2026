@@ -1,0 +1,6 @@
+{"quan": {"random_customers": false, "stock": [
+  {"id": "I1", "kind": "ca_loc", "fresh": 100},
+  {"id": "I2", "kind": "ca_loc", "fresh": 35},
+  {"id": "I3", "kind": "bong_sung", "fresh": 70},
+  {"id": "I4", "kind": "ca_linh", "fresh": 20}
+], "customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui"}]}}

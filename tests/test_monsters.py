@@ -64,11 +64,14 @@ class Hit(unittest.TestCase):
 
     def test_apply_hit_lifo_and_recoil(self):
         ms = MonsterSet(G, fixtures=[croc()])
-        hold = ["ca_loc", "bong_sung", "ca_linh", "ca_linh", "ca_linh"]
+        kinds = ["ca_loc", "bong_sung", "ca_linh", "ca_linh", "ca_linh"]
+        hold = [{"id": f"I{i + 1}", "kind": k, "u": 24000} for i, k in enumerate(kinds)]  # v1.2: cá thể nội bộ
         hit = ms.step([60.5, 24.0])
         lost = ms.apply_hit(hit, [60.5, 24.0], hold)
-        self.assertEqual(lost, ["ca_linh", "ca_linh"])  # floor(5 × 0.5) = 2, nhặt sau mất trước
-        self.assertEqual(hold, ["ca_loc", "bong_sung", "ca_linh"])
+        # floor(5 × 0.5) = 2, vào giỏ sau mất trước; trả dạng public {id,kind,fresh}
+        self.assertEqual(lost, [{"id": "I5", "kind": "ca_linh", "fresh": 100.0},
+                                {"id": "I4", "kind": "ca_linh", "fresh": 100.0}])
+        self.assertEqual([it["id"] for it in hold], ["I1", "I2", "I3"])
         m = ms.items[0]
         self.assertEqual((m["state"], m["state_ticks_left"]), ("recoil", 60))
         self.assertAlmostEqual(abs(m["recoil_dir"][0]), 1.0)  # lùi xa người chơi theo trục x

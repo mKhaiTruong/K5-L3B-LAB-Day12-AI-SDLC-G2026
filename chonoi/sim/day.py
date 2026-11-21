@@ -7,6 +7,8 @@ Pause nằm ở `runner.Session` (dùng chung cho cả ba mode).
 
 Giả định đã chốt (ghi ở docs/clarify.md):
   - mỗi pha dùng IdAllocator mới (id N1.., F1.., C1.. lặp lại mỗi Ngày); `Streams(seed)` dùng chung cả lượt chơi;
+  - v1.2: id cá thể I1, I2… cấp từ MỘT `ItemIds` giữ ở đây, tăng liên tục xuyên pha và xuyên Ngày; giỏ lúc
+    gather_end bàn giao nguyên cá thể (giữ id, độ tươi) sang kho quán; kho quán dư cuối Ngày không mang sang Ngày sau;
   - scenario gather/quan là mẫu khởi tạo ÁP DỤNG MỖI Ngày.
 """
 
@@ -14,8 +16,8 @@ import copy
 
 from ..contract import DAYS, plan_ingredients
 from ..errors import BadInput
+from ..fresh import Freshness, ItemIds, by_id, public
 from ..ids import IdAllocator
-from ..inventory import hold_to_items
 from .gather import GatherSim
 from .quan import QuanSim
 
@@ -51,7 +53,9 @@ class DaySim:
         self.phase_tick = 0
         self.active = dict(self.upgrades)
         self.sub = None
-        self.stock = {}
+        self.stock = []  # kho quán lúc vào Shop, dạng public (chỉ để snapshot)
+        self.fresh = Freshness(tuning)
+        self.item_ids = ItemIds()
         self._boot = []  # sự kiện tick 0
         self._start_gather(self._boot)
 
@@ -88,7 +92,7 @@ class DaySim:
         return self.sub.time_left_ticks if self._phase != "shop" else max(0, self.shop_t["max_ticks"] - self.phase_tick)
 
     def snapshot(self):
-        snap = self.sub.snapshot() if self._phase != "shop" else {"stock": dict(self.stock)}
+        snap = self.sub.snapshot() if self._phase != "shop" else {"stock": list(self.stock)}
         snap.update({"day": self.day, "day_plan": self.plan, "upgrades": dict(self.upgrades),
                      "active_upgrades": dict(self.active)})
         return snap
@@ -111,16 +115,27 @@ class DaySim:
         self.active = dict(self.upgrades)
         self._phase = "gather"
         self.phase_tick = 0
-        self.sub = GatherSim(self._day_tuning(), self.gather_scn, self.rng, IdAllocator(), day=self.day)
+        scn = self.gather_scn
+        if self.day > 1 and scn.get("hold"):
+            # từ Ngày 2 giỏ dựng sẵn là cá thể MỚI: id mới theo thứ tự mảng (PRD), id I* không lặp lại
+            scn = dict(scn, hold=[dict(it, id=self.item_ids.new()) for it in scn["hold"]])
+        self.sub = GatherSim(self._day_tuning(), scn, self.rng, IdAllocator(),
+                              day=self.day, item_ids=self.item_ids)
         events += [("day_start", {}, "gather", self.day),
                    ("day_plan", copy.deepcopy(self.plan), "gather", self.day),
                    ("phase_start", {}, "gather", self.day)]
+
+    def _hand_over(self):
+        """Giỏ lúc gather_end -> kho quán: cá thể nguyên vẹn (id, độ tươi) do gather v1.2 cấp."""
+        out = [dict(it) for it in self.sub.hold]
+        self.item_ids.reserve_all(out)
+        return out
 
     def _start_quan(self, items, events):
         self._phase = "quan"
         self.phase_tick = 0
         q = QuanSim(self.tuning, self.quan_scn, self.rng, IdAllocator(), inventory=items,
-                    plan_dishes=set(self.plan["dishes"]))
+                    plan_dishes=set(self.plan["dishes"]), item_ids=self.item_ids)
         q.money, q.earned, q.reputation = self.money, self.earned, self.reputation
         self.sub = q
         events.append(("phase_start", {}, "quan", self.day))
@@ -128,7 +143,7 @@ class DaySim:
     def _start_shop(self, events):
         self._phase = "shop"
         self.phase_tick = 0
-        self.stock = {k: v for k, v in self.sub.stock.items() if v > 0}
+        self.stock = [public(it) for it in by_id(self.sub.stock)]
         self.sub = None
         events.append(("phase_start", {}, "shop", self.day))
 
@@ -145,7 +160,7 @@ class DaySim:
             return events
         self.sim_changed = True
         if phase == "gather":
-            self._start_quan(hold_to_items(self.sub.hold), events)
+            self._start_quan(self._hand_over(), events)
         else:
             q = self.sub
             self.money, self.earned, self.reputation = q.money, q.earned, q.reputation

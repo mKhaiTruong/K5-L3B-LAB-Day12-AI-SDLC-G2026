@@ -12,6 +12,11 @@ TUNING = load_contract()["tuning"]
 DISH = {"order_id": "C1", "dish_id": "ca_loc_nuong_trui", "base_price": 60}
 
 
+def item(i, kind="ca_loc", fresh=100):
+    """Cá thể v1.2 cho fixture."""
+    return {"id": i, "kind": kind, "fresh": fresh}
+
+
 def _load(block):
     """Ghi khối quan ra file tạm rồi nạp qua load_scenario."""
     with Workdir() as w:
@@ -31,8 +36,9 @@ class ScenarioQuanStatic(unittest.TestCase):
             _load(block)
 
     def test_valid_fixtures_pass(self):
-        _load({"stock": {"ca_loc": 1}, "customers": [_customer()]})  # reserved mặc định
-        _load({"customers": [_customer(order_status="assigned", reserved={})],
+        _load({"stock": [item("I1")], "customers": [_customer()]})  # reserved mặc định (QuanSim cấp)
+        _load({"stock": [item("I1"), item("I2")], "customers": [_customer(reserved=["I2"])]})
+        _load({"customers": [_customer(order_status="assigned", reserved=[])],
                "stoves": [{"id": "B1", "state": "cooking", "dish": DISH, "cook_ticks_left": 360}]})
         _load({"customers": [_customer(order_status="assigned")], "hand": DISH})
         _load({"customers": [_customer(state="eating", order_status="served", eat_ticks_left=600,
@@ -46,8 +52,19 @@ class ScenarioQuanStatic(unittest.TestCase):
         self.assertBad({"customers": [_customer(dish_id="pho")]})
 
     def test_reserved_must_match_recipe(self):
-        self.assertBad({"customers": [_customer(reserved={"ca_loc": 2})]})
-        self.assertBad({"customers": [_customer(order_status="unfulfillable", reserved={"ca_loc": 1})]})
+        two = [item("I1"), item("I2")]
+        self.assertBad({"stock": two, "customers": [_customer(reserved=["I1", "I2"])]})  # 2 cá lóc ≠ công thức
+        self.assertBad({"stock": two, "customers": [_customer(order_status="unfulfillable", reserved=["I1"])]})
+
+    def test_reserved_ids_v12(self):
+        stock = [item("I1"), item("I2", fresh=29.5), item("I3", "bong_sung")]
+        self.assertBad({"stock": stock, "customers": [_customer(reserved=["I9"])]})  # không có trong kho
+        self.assertBad({"stock": stock, "customers": [_customer(reserved=["I2"])]})  # đã ươn
+        self.assertBad({"stock": stock, "customers": [_customer(reserved=["I3"])]})  # sai loại
+        self.assertBad({"stock": stock, "customers": [_customer(reserved=["I1"]),
+                                                      _customer(id="C2", table_id="T2", reserved=["I1"])]})  # dùng chung
+        self.assertBad({"customers": [_customer(reserved={"ca_loc": 1})]})  # dạng đếm cũ
+        self.assertBad({"stock": {"ca_loc": 1}})  # kho đếm cũ
 
     def test_eating_needs_served_timer_and_price(self):
         self.assertBad({"customers": [_customer(state="eating", order_status="served", base_price=60, tip=0)]})
@@ -87,12 +104,12 @@ class ScenarioQuanStock(unittest.TestCase):
             return run_headless(*args)[0]
 
     def test_reserved_over_stock_exit_2(self):
-        self.assertEqual(self._code({"stock": {}, "customers": [_customer()]}), 2)
-        self.assertEqual(self._code({"customers": [_customer()]}, inventory={}), 2)
+        self.assertEqual(self._code({"stock": [], "customers": [_customer()]}), 2)
+        self.assertEqual(self._code({"customers": [_customer()]}, inventory=[]), 2)
 
     def test_reserved_within_stock_exit_0(self):
-        self.assertEqual(self._code({"stock": {"ca_loc": 1}, "customers": [_customer()]}), 0)
-        self.assertEqual(self._code({"customers": [_customer()]}, inventory={"ca_loc": 1}), 0)
+        self.assertEqual(self._code({"stock": [item("I1")], "customers": [_customer()]}), 0)
+        self.assertEqual(self._code({"customers": [_customer()]}, inventory=[item("I1")]), 0)
 
 
 if __name__ == "__main__":

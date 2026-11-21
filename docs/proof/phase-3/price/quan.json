@@ -1,0 +1,1 @@
+{"quan": {"player": {"pos": [2, 8]}, "random_customers": false, "stock": [{"id": "I1", "kind": "ca_loc", "fresh": 50.5}], "customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui"}]}}

@@ -10,6 +10,7 @@ import math
 
 from .contract import plan_ingredients
 from .errors import BadInput
+from .fresh import Freshness, parse_items
 from .inventory import KINDS_P1, validate_items
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "time_left_ticks", "monsters"}
@@ -216,7 +217,9 @@ def _validate_gather(b, tuning):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(k not in KINDS_P1 for k in h):
+        if _v12(tuning):
+            parse_items(h, "gather.hold", KINDS_P1)  # v1.2: mảng cá thể {id,kind,fresh}
+        elif not isinstance(h, list) or any(k not in KINDS_P1 for k in h):
             raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
@@ -303,7 +306,7 @@ def _validate_quan(b, tuning):
         if arr in b:
             _check_ids(arr, b[arr])
     if "stock" in b:
-        validate_items(b["stock"])
+        stock = parse_items(b["stock"], "quan.stock", KINDS_P1) if _v12(tuning) else validate_items(b["stock"])
     if "random_customers" in b and not isinstance(b["random_customers"], bool):
         raise BadInput("random_customers phải là boolean")
     if "reputation" in b:
@@ -319,8 +322,11 @@ def _validate_quan(b, tuning):
         raise BadInput("player.vel phải là [x, z]")
     customers = {c["id"]: c for c in b.get("customers", [])}
     _validate_tables(b.get("tables", []), q)
+    v12 = _v12(tuning)
     for c in customers.values():
-        _validate_customer(c, q, menu)
+        _validate_customer(c, q, menu, v12)
+    if v12 and "stock" in b:  # giữ chỗ theo id kiểm được ngay khi scenario có stock; --inventory kiểm ở QuanSim
+        check_reserved_ids(list(customers.values()), stock, tuning)
     # món đang ở bếp / trên tay: payload hợp lệ, nối đúng đơn assigned, mỗi đơn tối đa một món
     holders = {}  # order_id -> [(nơi giữ, payload món)]
     for s in b.get("stoves", []):
@@ -357,7 +363,7 @@ def _validate_tables(tables, q):
             _pos(f"tables.{t['id']}.pos", t["pos"], q["bounds"], axes=("x", "z"))
 
 
-def _validate_customer(c, q, menu):
+def _validate_customer(c, q, menu, v12=False):
     cid = c["id"]
     extra = set(c) - CUSTOMER_KEYS
     if extra:
@@ -380,7 +386,11 @@ def _validate_customer(c, q, menu):
     if c.get("eat_ticks_left", 0) > int(round(q["eat_s"] * 60)):
         raise BadInput(f"customers.{cid}.eat_ticks_left vượt thời gian ăn")
     reserved = c.get("reserved")
-    if reserved is not None:
+    if reserved is not None and v12:
+        if not (isinstance(reserved, list) and all(isinstance(i, str) and i for i in reserved)
+                and len(set(reserved)) == len(reserved)):
+            raise BadInput(f"customers.{cid}.reserved phải là mảng id cá thể (chuỗi khác rỗng, không trùng)")
+    elif reserved is not None:
         reserved = validate_items(reserved)
     if (state == "eating") != (status == "served"):
         raise BadInput(f"customers.{cid}: khách eating phải có order_status served (và ngược lại)")
@@ -389,7 +399,7 @@ def _validate_customer(c, q, menu):
             raise BadInput(f"customers.{cid}: khách eating cần eat_ticks_left > 0")
         if "base_price" not in c or "tip" not in c:
             raise BadInput(f"customers.{cid}: khách eating phải khai base_price và tip đã chốt")
-    if status == "reserved" and reserved is not None and reserved != menu[c["dish_id"]]["recipe"]:
+    if not v12 and status == "reserved" and reserved is not None and reserved != menu[c["dish_id"]]["recipe"]:
         raise BadInput(f"customers.{cid}: reserved khác công thức {c['dish_id']}")
     if status != "reserved" and reserved:
         raise BadInput(f"customers.{cid}: đơn {status} phải có phần giữ rỗng")
@@ -436,6 +446,52 @@ def _check_dish(name, dish, menu):
         raise BadInput(f"{name}: order_id phải là chuỗi, dish_id phải có trong menu")
     if isinstance(dish["base_price"], bool) or not isinstance(dish["base_price"], int) or dish["base_price"] <= 0:
         raise BadInput(f"{name}: base_price phải là số nguyên dương")
+
+
+def _v12(tuning) -> bool:
+    """Contract v1.2 (có khối freshness) dùng cá thể cho hold/stock/reserved."""
+    return "freshness" in tuning
+
+
+def check_reserved_ids(customers, stock, tuning):
+    """Kiểm giữ chỗ theo id cá thể (v1.2): trỏ tới cá thể có trong kho, chưa ươn, đủ đúng công thức,
+    không dùng chung giữa các đơn; đơn không phải `reserved` thì phần giữ rỗng.
+
+    Đơn `reserved` thiếu `reserved` KHÔNG kiểm ở đây: QuanSim cấp theo order_tick rồi id bàn
+    (`fresh.reserve_recipe`), không đủ -> mã 2.
+
+    Args:
+        customers: khách (scenario hoặc đã dựng), `reserved` là mảng id.
+        stock: kho cá thể nội bộ `{"id","kind","u"}` (xem `chonoi.fresh`).
+        tuning: khối tuning (menu, freshness).
+
+    Raises:
+        BadInput: id không có trong kho, cá thể ươn, dùng chung, hoặc khác công thức (mã 2).
+    """
+    cfg = Freshness(tuning)
+    by = {it["id"]: it for it in stock}
+    used = set()
+    for c in customers:
+        ids = c.get("reserved")
+        if ids is None:
+            continue
+        status = c.get("order_status", "reserved")
+        if status != "reserved":
+            if ids:
+                raise BadInput(f"customers.{c['id']}: đơn {status} phải có phần giữ rỗng")
+            continue
+        kinds = {}
+        for i in ids:
+            if i not in by:
+                raise BadInput(f"customers.{c['id']}.reserved: {i} không có trong kho")
+            if i in used:
+                raise BadInput(f"customers.{c['id']}.reserved: {i} đã bị đơn khác giữ")
+            if cfg.spoiled(by[i]):
+                raise BadInput(f"customers.{c['id']}.reserved: {i} đã ươn")
+            used.add(i)
+            kinds[by[i]["kind"]] = kinds.get(by[i]["kind"], 0) + 1
+        if kinds != tuning["menu"][c["dish_id"]]["recipe"]:
+            raise BadInput(f"customers.{c['id']}.reserved khác công thức {c['dish_id']}")
 
 
 def check_reserved_within_stock(customers, stock):

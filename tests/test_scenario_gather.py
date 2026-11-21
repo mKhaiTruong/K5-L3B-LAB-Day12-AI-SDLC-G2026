@@ -27,7 +27,7 @@ class ScenarioGatherTest(unittest.TestCase):
     def test_prd_example_is_valid(self):
         block = {
             "player": {"pos": [20, 0], "heading_deg": 0},
-            "hold": ["ca_loc", "bong_sung"],
+            "hold": [{"id": "I1", "kind": "ca_loc", "fresh": 100}, {"id": "I2", "kind": "bong_sung", "fresh": 97.5}],  # v1.2: cá thể
             "nodes": [{"id": "N1", "kind": "bong_dien_dien", "pos": [22, 0]}],
             "fish": [],
             "random_fish": False,

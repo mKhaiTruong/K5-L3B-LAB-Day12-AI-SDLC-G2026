@@ -58,7 +58,8 @@ class DayScenario(unittest.TestCase):
 
     def test_prd_example_is_valid(self):
         data = {"day": {"money": 200, "earned": 200},
-                "gather": {"hold": ["ca_loc", "bong_sung", "bong_sung"], "random_fish": False}}
+                "gather": {"hold": [{"id": "I1", "kind": "ca_loc", "fresh": 100}, {"id": "I2", "kind": "bong_sung", "fresh": 100},
+                                    {"id": "I3", "kind": "bong_sung", "fresh": 100}], "random_fish": False}}
         out = _load(data, "day")
         self.assertEqual(out, {"day": data["day"], "gather": data["gather"], "quan": {}})
 
@@ -82,7 +83,7 @@ class DayScenario(unittest.TestCase):
         self.assertBad({"day": {"day_plan": [{"day": 1, "dishes": {"pho": 1}}]}})
 
     def test_forbidden_quan_fields_in_day(self):
-        self.assertBad({"quan": {"stock": {"ca_loc": 1}}})
+        self.assertBad({"quan": {"stock": [{"id": "I1", "kind": "ca_loc", "fresh": 100}]}})
         self.assertBad({"quan": {"reputation": 4.0}})
         self.assertBad({"day": {"cash": 1}})
 

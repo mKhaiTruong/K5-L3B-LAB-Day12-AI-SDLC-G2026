@@ -219,8 +219,20 @@ def validate_tuning(t):
             raise BadInput(f"menu.{dish_id}.recipe phải là map nguyên liệu hợp lệ -> số lượng")
         for k, v in recipe.items():
             _int_between(f"menu.{dish_id}.recipe.{k}", v, 1, 100)
+    _validate_freshness(t.get("freshness"))
     _validate_day_plan(t.get("day_plan"), menu)
     _validate_shop(t.get("shop"))
+
+
+def _validate_freshness(f):
+    """Độ tươi v1.2 (TICKET-03): initial, gather_decay_per_s, quan_decay_per_s, spoiled_below."""
+    keys = ("initial", "gather_decay_per_s", "quan_decay_per_s", "spoiled_below")
+    if not isinstance(f, dict) or set(f) != set(keys):
+        raise BadInput(f"tuning.freshness phải có đúng {list(keys)}")
+    _between("freshness.initial", f["initial"], 0, 100)
+    _between("freshness.spoiled_below", f["spoiled_below"], 0, f["initial"])
+    for k in ("gather_decay_per_s", "quan_decay_per_s"):
+        _between(f"freshness.{k}", f[k], 0, 100)
 
 
 def plan_ingredients(dishes: dict, menu: dict) -> dict:
