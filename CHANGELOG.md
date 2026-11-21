@@ -1,6 +1,14 @@
 # Changelog
 ## Unreleased
 
+## phase-4 / v1.0.0 — 2026-11-21 (Test Contract v1.3)
+- Contract: `contract_version: "1.3"`; khai `bench_cmd` (`python3 -m chonoi.bench`) và `soak_cmd` (`python3 -m chonoi.soak`) ở gốc `game.contract.json`. Gameplay, tuning, kho, JSONL **không đổi** so với v1.2, nên không cần sửa fixture.
+- Soak: `chonoi/soak.py` chạy N Ngày trong một tiến trình (kế hoạch D1–D5 lặp ở Ngày 6–10; tiền, uy tín, cấp, id cá thể chạy liên tục), ghi `soak.json`; `tests/test_soak.py`.
+- Bench: `chonoi/bench.py`, cảnh lặn có render 1280×720, ghi `bench.json` (Phong).
+- UI: 3 cảnh báo có chữ + biểu tượng (thủy quái gần, oxy sắp hết, khách sắp giận) và chế độ tương phản cao (Phong).
+- README: yêu cầu môi trường, 3 lệnh từ clone sạch, lệnh headless / bench / soak / test, hạn chế đã biết.
+- Bằng chứng `docs/proof/phase-4/`, ma trận `docs/verification/phase-4.md`.
+
 ## phase-3 — 2026-11-21 (Test Contract v1.2)
 ### BREAKING: kho cá thể + độ tươi
 - File kho `{"items":{kind:n}}` → `{"items":[{"id","kind","fresh"}]}` (sắp theo id). Chạy v1.2 mà đọc kho đếm → **mã 2**.

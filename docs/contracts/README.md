@@ -1,6 +1,6 @@
-# Hợp đồng tích hợp — Test Contract v1.2 (Phase 3)
+# Hợp đồng tích hợp — Test Contract v1.3 (Phase 4)
 
-> Chốt ở kickoff P1 (v1.0), cập nhật v1.1 (P2) và **v1.2 (P3: kho cá thể + độ tươi)**. Đổi hợp đồng: báo cả nhóm, PR cần người khác duyệt, ghi lý do (ADR hoặc mục "Lịch sử thay đổi" cuối file).
+> Chốt ở kickoff P1 (v1.0), cập nhật v1.1 (P2), v1.2 (P3: kho cá thể + độ tươi) và **v1.3 (P4: thêm `bench_cmd`, `soak_cmd`; gameplay / kho / JSONL giữ như v1.2)**. Đổi hợp đồng: báo cả nhóm, PR cần người khác duyệt, ghi lý do (ADR hoặc mục "Lịch sử thay đổi" cuối file).
 > Nguồn: PRD-0 mục C (inputs), E (output/sự kiện), F (luật), G (kho); TICKET-02, TICKET-03. Số liệu chỉ đọc từ `game.contract.json`.
 
 ## 1. File kho (gather → quan) — PRD-0 mục G, TICKET-03
@@ -118,9 +118,19 @@ python3 -m chonoi.headless --mode quan --seed 42 --inventory catch.json --ticks 
 
 Đã có sẵn trong `tests/test_smoke_p1.py` (`test_inv_01_*`), `tests/test_gather_fresh.py` (`test_fr09`) và `tools/proof_p3.py`.
 
+## 5. Bench và soak (v1.3, TICKET-04)
+
+| Lệnh (gốc `game.contract.json`) | Gọi | Đầu ra |
+|---|---|---|
+| `bench_cmd` = `python3 -m chonoi.bench` | `--seed <int> --duration <giây> --out bench.json` | `{avg_fps, p1_low_fps, frames, measured_s, load_ms}`; cảnh lặn chuẩn (độ tươi, cá bơi, Cá Sấu, hiệu ứng mặc định; Út Sen đứng yên ở bến), 1280×720, làm nóng 3 s |
+| `soak_cmd` = `python3 -m chonoi.soak` | `--seed <int> --days <N> --out soak.json` | `{days, days_completed, crashes, results[]{day, earned, reputation, score}, duration_s}`; `results` lấy lúc Shop đóng; Ngày d dùng kế hoạch D((d−1) mod 5 + 1) |
+
+Tham số sai → mã 2, không tạo file đầu ra. Soak không ghi JSONL, không ghi bảng xếp hạng. So tính lặp thì bỏ `duration_s`.
+
 ## Lịch sử thay đổi
 
 | Ngày | Đổi gì | Lý do | Ai duyệt |
 |---|---|---|---|
 | 2026-11-21 | Bản đầu (P1) | kickoff | Khuê (Integrator) |
 | 2026-11-21 | v1.2: file kho, `hold`, `stock`, `reserved`, `lost`, `cook_started.items` thành cá thể `{id,kind,fresh}`; thêm event `spoiled`, `tuning.freshness` | TICKET-03 (độ tươi); PR #22, #23, #25, #26, #27 | Khuê (Integrator); Phong, Khánh code theo |
+| 2026-11-21 | v1.3: thêm `bench_cmd`, `soak_cmd` (mục 5); không đổi gameplay | TICKET-04 (phát hành v1.0.0); PR #29 | Khuê (Integrator); Phong code bench |

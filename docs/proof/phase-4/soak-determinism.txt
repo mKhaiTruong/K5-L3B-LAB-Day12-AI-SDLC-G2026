@@ -1,0 +1,4 @@
+soak --seed 7 --days 10, chạy 2 lần
+days_completed = 10 / 10 ; crashes = 0
+duration_s lần 1 = 4.289 ; lần 2 = 4.068 (bỏ khi so)
+giống nhau (bỏ duration_s): True
