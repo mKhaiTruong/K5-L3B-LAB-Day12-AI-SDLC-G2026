@@ -38,14 +38,14 @@
 
 | AC | Cách kiểm chứng | Bằng chứng | Kết quả |
 |---|---|---|---|
-| AC-P3-15 HUD: giỏ / kho vẽ từng cá thể, thanh tươi, hàng ươn mờ + ✕, hàng đang giữ chỗ có viền, cảnh báo `spoiled` | đọc code + chơi thử | `chonoi/web/index.html` (PR #25) | **đạt một phần** (code đã merge, chưa có ảnh chụp / chơi thử ghi lại) |
+| AC-P3-15 HUD: giỏ / kho vẽ từng cá thể, thanh tươi, hàng ươn mờ + ✕, hàng đang giữ chỗ có viền, cảnh báo `spoiled` | đọc code + chơi thử | `chonoi/web/index.html` (PR #25); ảnh chơi thử [`docs/proof/phase-3/hud/`](../proof/phase-3/hud/) | đạt (ảnh có cá thể, thanh tươi, ươn mờ + ✕, viền giữ chỗ; dòng cảnh báo ~2,5 giây chưa lọt vào ảnh, event `spoiled` thấy ở log sự kiện HUD) |
 | AC-P3-16 Regression P1/P2 với contract v1.2; test đổi có ghi lý do | toàn bộ test | `tests-full.txt` **189/189**; fixture đổi sang cá thể (lý do trong commit PR #23, #26 và mục "Cách cập nhật fixture" ở `CHANGELOG.md`) | đạt |
 | AC-P3-17 Hợp đồng + changelog cập nhật breaking change | đọc | `docs/contracts/README.md` (v1.2), `docs/contracts/inventory.sample.json`, `CHANGELOG.md` | đạt |
-| AC-P3-18 Ghi chép: clarify, ai-usage-log, retro | đọc | `docs/clarify.md` #24–#30, `docs/retro.md` Phase 3, `docs/ai-usage-log.md` | **đạt một phần** (ai-usage-log P3 của Phong, Khánh chờ bổ sung) |
+| AC-P3-18 Ghi chép: clarify, ai-usage-log, retro | đọc | `docs/clarify.md` #24–#30, `docs/retro.md` Phase 3, `docs/ai-usage-log.md` (P3 đủ Khuê, Khánh, Phong) | đạt |
 | AC-P3-19 Tag `phase-3` trỏ tới commit bàn giao trên `main` | `git tag` | — | chưa |
 
 ## Đánh giá ngắn
 - **Đạt:** toàn bộ lõi headless Phase 3: kho cá thể + độ tươi ở gather, quán, day; giữ chỗ theo id, giữ lại khi ươn, giá theo độ tươi; smoke bàn giao kho theo PRD, tất định; regression 189/189.
-- **Đạt một phần:** HUD độ tươi chưa có bằng chứng chơi thử; ai-usage-log P3 chưa đủ người.
+- **Đạt:** HUD độ tươi có ảnh chơi thử giỏ / kho (`docs/proof/phase-3/hud/`); ai-usage-log P3 đủ 3 người.
 - **Còn nợ từ P2 (không thuộc Phase 3):** UI menu / DayIntro / DayResult / Summary / pause menu (AC-P2-17); `chonoi/live.py` chưa có mode `day`.
 - **Rủi ro:** đơn vị 240 / điểm và làm tròn 3 chữ số là giả định của nhóm (test ẩn so `fresh` chặt hơn ±0.01 có thể lệch); quy tắc giữ lại khi ươn (#25) và kho không mang sang Ngày sau (#26) chưa được xác nhận.

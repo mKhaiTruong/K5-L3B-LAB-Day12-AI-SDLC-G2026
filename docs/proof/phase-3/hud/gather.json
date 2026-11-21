@@ -1,0 +1,6 @@
+{"gather": {"monsters": [], "hold": [
+  {"id": "I1", "kind": "ca_loc", "fresh": 100},
+  {"id": "I2", "kind": "bong_sung", "fresh": 55},
+  {"id": "I3", "kind": "ca_keo", "fresh": 20},
+  {"id": "I4", "kind": "ca_linh", "fresh": 40}
+]}}
