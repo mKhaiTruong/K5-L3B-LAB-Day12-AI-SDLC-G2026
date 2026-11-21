@@ -27,7 +27,7 @@
 ## Phase 4 (cuối)
 - **Rà lại hành động Phase 2** ("báo trước khi đụng file dùng chung, push nhánh nền ngay sau mỗi commit", người nhận Khuê):
   - **P3: đã làm.** Mọi hàm dùng chung có trên nhánh nền `3d24de2` trước khi tách nhánh, nên không ai viết trùng.
-  - **P4: đã làm.** Khi chia lại việc lúc Khánh rời, mỗi file chỉ có một chủ: Phong giữ `chonoi/web/index.html` (bench + cảnh báo), Khuê giữ `chonoi/soak.py` + docs.
+  - **P4: đã làm.** Mỗi file chỉ có một chủ: Phong giữ `chonoi/web/index.html` (bench + cảnh báo), Khuê giữ `chonoi/soak.py` + docs.
   - **Còn vướng:** "báo" vẫn qua chat, không ghi lại. Ở P3, việc cùng sửa `day.py` vẫn phải thêm một PR dọn (#27).
 - **Rà hành động Phase 3** ("cập nhật hợp đồng + CHANGELOG ngay trong PR nền, trước khi chia việc"): **làm một phần.** `game.contract.json` v1.3 nằm ở commit đầu của nhánh nền (`16a095c`) và PR #29 có bảng phân việc ngay từ đầu. Còn `docs/contracts/README.md` và `CHANGELOG.md` thì cập nhật sau khi đã chia việc, vì phải đóng Phase 3 trước.
 - Điều tốt:
@@ -38,7 +38,7 @@
     - Phong sửa câu sai trong log của Khánh.
   - Verification ghi trung thực "đạt một phần"; ảnh HUD P3 được bổ sung trước khi chuyển sang "đạt".
 - Điều tệ:
-  - Quá hạn demo P3, kéo theo P4 bắt đầu muộn. Khánh hết token giữa P4, nên một người phải nhận 2 phần việc.
+  - Quá hạn demo P3, kéo theo P4 bắt đầu muộn, nên thời gian cho bench và cảnh báo rất ít.
   - UI menu / màn Ngày (nợ từ P2) chưa bao giờ được làm; `live.py` vẫn chưa có mode `day`.
   - Token / chi phí chưa ai đo (cột "chưa đo" ở mọi dòng ai-usage-log).
 - **Số liệu:**
@@ -52,5 +52,5 @@
 - **Nếu làm lại, đổi gì:**
   - Đóng phase (proof, verification, hợp đồng) ngay khi PR code cuối merge, không để tới sau hạn.
   - Mỗi người ghi ai-usage-log ngay trong PR của mình.
-  - Có một người dự phòng cho mỗi module, để khi có người rời (hết token) thì việc không dồn vào một chỗ.
+  - Có một người dự phòng cho mỗi module, để việc không dồn vào một chỗ lúc cuối.
 - **Hành động tiếp theo** (sau v1.0.0): làm UI vòng Ngày (`live.py --mode day` + màn Shop) và đo token theo người. Người nhận: Phong (UI), Khuê (đo).

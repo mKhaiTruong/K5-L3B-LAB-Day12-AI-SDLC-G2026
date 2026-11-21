@@ -42,7 +42,7 @@
 | AC | Cách kiểm chứng | Bằng chứng | Kết quả |
 |---|---|---|---|
 | AC-P4-13 Regression P1–P3 còn hiệu lực đạt | toàn bộ test | `tests-full.txt` **193/193** (189 P1–P3 + 4 soak); test đổi: `test_fresh_v12` so `"1.3"` (lý do: bump contract, commit `aa19c7f`) | đạt |
-| AC-P4-14 `docs/clarify.md`, `docs/ai-usage-log.md` cập nhật | đọc | clarify #31–#33; ai-usage-log P4 (Khuê; Phong chờ; Khánh không tham gia P4) | đạt một phần |
+| AC-P4-14 `docs/clarify.md`, `docs/ai-usage-log.md` cập nhật | đọc | clarify #31–#33; ai-usage-log P4 (Khuê; Phong chờ bổ sung) | đạt một phần |
 | AC-P4-15 Retro rà hành động P2, chốt việc tiếp theo, nêu một lỗi AI và cách xác minh | đọc | `docs/retro.md` Phase 4 | đạt |
 | AC-P4-16 Phản tư cá nhân đủ người (≤ 200 từ, dẫn commit) | đọc | `docs/members/trinhtuanphong123.md` (P1–P3), `qockhah253.md`, `mKhaiTruong.md` | **đạt một phần** (2 mục "tự viết" của Khuê còn trống; Phong chưa thêm P4) |
 
