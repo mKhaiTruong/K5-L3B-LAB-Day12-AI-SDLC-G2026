@@ -1,1 +1,1 @@
-bench: render trình duyệt (chrome.exe, canvas 1280x720, dpr 1): {"avg_fps": 60.0, "p1_low_fps": 57.8, "frames": 1800, "measured_s": 30.001, "load_ms": 543}
+bench: render trình duyệt (chrome.exe, canvas 1280x720, dpr 1): {"avg_fps": 120.0, "p1_low_fps": 115.64, "frames": 3600, "measured_s": 30.001, "load_ms": 1210}

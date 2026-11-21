@@ -1,3 +1,10 @@
+test_bad_duration_exit_2 (test_bench.BenchCmd.test_bad_duration_exit_2) ... ok
+test_bench_cmd_browser_render (test_bench.BenchCmd.test_bench_cmd_browser_render) ... skipped 'đặt CHONOI_BENCH_BROWSER=1 để đo render thật'
+test_bench_cmd_writes_five_fields (test_bench.BenchCmd.test_bench_cmd_writes_five_fields)
+Lệnh trong contract chạy được (dự phòng không render để test không cần trình duyệt). ... ok
+test_avg_and_p1_low (test_bench.BenchMath.test_avg_and_p1_low) ... ok
+test_json_shape (test_bench.BenchMath.test_json_shape) ... ok
+test_p1_low_at_least_one_frame (test_bench.BenchMath.test_p1_low_at_least_one_frame) ... ok
 test_day_runs_and_is_deterministic (test_day.Cli.test_day_runs_and_is_deterministic) ... ok
 test_days_validation_exit_2 (test_day.Cli.test_days_validation_exit_2) ... đầu vào sai: --days phải là số nguyên từ 1 đến 5
 đầu vào sai: --days phải là số nguyên từ 1 đến 5
@@ -206,6 +213,6 @@ test_too_few_members (test_team_check.TeamCheck.test_too_few_members) ... ok
 test_wrong_size_duplicate_and_outsider (test_team_check.TeamCheck.test_wrong_size_duplicate_and_outsider) ... ok
 
 ----------------------------------------------------------------------
-Ran 193 tests in 23.598s
+Ran 199 tests in 37.467s
 
-OK
+OK (skipped=1)
