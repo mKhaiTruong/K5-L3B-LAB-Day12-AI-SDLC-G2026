@@ -26,7 +26,7 @@
 | AC | Cách kiểm chứng | Bằng chứng | Kết quả |
 |---|---|---|---|
 | AC-P4-07 Cảnh báo bằng chữ + biểu tượng: thủy quái gần, oxy sắp hết, khách sắp giận | đọc code + ảnh | `chonoi/web/index.html` (PR #30); ngưỡng [clarify #36](../clarify.md) | đạt |
-| AC-P4-08 Chế độ tương phản cao (nút / phím H / `?hc=1`); cả 3 cảnh báo hiện ở chế độ đó | ảnh từ kịch bản | [`warn/`](../proof/phase-4/warn/): `gather-hc.png` (oxy + thủy quái), `quan-hc.png` (khách sắp giận), kèm trạng thái `/state` lúc chụp | đạt (ảnh chụp bằng Chrome headless từ kịch bản dựng sẵn, không phải ghi lại lần chơi tay) |
+| AC-P4-08 Chế độ tương phản cao (nút / phím H / `?hc=1`); cả 3 cảnh báo hiện ở chế độ đó | chơi thử tay + ảnh | [`warn/`](../proof/phase-4/warn/): chơi tay `play-gather-hc.png`, `play-quan-hc.png` (+ bản thường `play-*-normal.png`); ảnh Chrome headless `gather-hc.png`, `quan-hc.png` kèm trạng thái `/state` lúc chụp | đạt |
 
 ## Đóng gói + phát hành
 
@@ -42,13 +42,14 @@
 | AC | Cách kiểm chứng | Bằng chứng | Kết quả |
 |---|---|---|---|
 | AC-P4-13 Regression P1–P3 còn hiệu lực đạt | toàn bộ test | `tests-full.txt` **199 OK** (189 P1–P3 + 4 soak + 6 bench, 1 skip); test đổi: `test_fresh_v12` so `"1.3"` (lý do: bump contract, `aa19c7f`) | đạt |
-| AC-P4-14 `docs/clarify.md`, `docs/ai-usage-log.md` cập nhật | đọc | clarify #31–#36; ai-usage-log P4 | đạt một phần |
+| AC-P4-14 `docs/clarify.md`, `docs/ai-usage-log.md` cập nhật | đọc | clarify #31–#36; ai-usage-log P4 (Khuê, Phong) | đạt |
 | AC-P4-15 Retro rà hành động P2, chốt việc tiếp theo, nêu một lỗi AI và cách xác minh | đọc | `docs/retro.md` Phase 4 | đạt |
-| AC-P4-16 Phản tư cá nhân đủ người (≤ 200 từ, dẫn commit) | đọc | `docs/members/trinhtuanphong123.md`, `qockhah253.md`, `mKhaiTruong.md` | đạt một phần (mục "tự viết" của Khuê còn trống) |
+| AC-P4-16 Phản tư cá nhân đủ người (≤ 200 từ, dẫn commit) | đọc | `docs/members/trinhtuanphong123.md`, `qockhah253.md`, `mKhaiTruong.md` (đều ≤ 200 từ) | đạt |
 
 ## Đánh giá ngắn
 - **Đạt:** contract v1.3; bench có render (đạt cả 3 mốc); soak 10 Ngày không crash, tất định; 3 cảnh báo + tương phản cao; regression 199 OK; CHANGELOG / CREDITS / LICENSE; retro; tag + Release.
-- **Đạt một phần:** chưa thử clone sạch trên Linux / macOS thật; ai-usage-log và phản tư P4 chưa đủ.
+- **Đạt một phần:** chưa thử clone sạch trên Linux / macOS thật.
+- Ghi chú: ảnh chơi tay, ai-usage-log P4 của Phong (PR #31) và phản tư của Khuê vào `main` **sau** tag `phase-4` / `v1.0.0`; code không đổi.
 - **Mở rộng (leaderboard, phụ đề SFX):** không làm, nhóm 3 người không bắt buộc.
 - **Rủi ro:**
   - Bot soak không phục vụ khách (`earned` = 0), nên soak chỉ đi qua nhánh "không đủ nguyên liệu" của quán.
