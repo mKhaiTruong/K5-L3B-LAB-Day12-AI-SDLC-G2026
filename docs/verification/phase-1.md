@@ -12,7 +12,7 @@
 | AC-P1-02 Oxy: dưới nước −1/tick, mặt nước +6/tick (kẹp), `oxygen_empty` một lần, `dive`/`surface` khi đổi phía | test hộp đen | `test_gather_lat1.Lat1Oxygen` (5 test) | đạt |
 | AC-P1-03 Ngạt lần đầu ở t+59; nổi lên đúng bước ngạt thì không ngạt; mất 3 Máu → `faint` (`lost` LIFO) → `gather_end fainted`, kho rỗng | test hộp đen + file kho | `test_gather_lat1.Lat1ChokeFaint` (6 test) | đạt |
 | AC-P1-04 Hái ở mặt nước: nút ready gần nhất (tính đúng mép, hòa theo id), `hold_full` giữ nút, mọc lại sau 20 s | test hộp đen | `test_gather_lat2` l2_01–l2_08 | đạt |
-| AC-P1-05 Bắt cá dưới nước: đàn gần nhất, đủ yield, cooldown 30 tick; thiếu chỗ → `hold_full`, không đặt cooldown, không thử đàn khác | test hộp đen | `test_gather_lat2` l2_09–l2_16 | đạt (giả định [clarify #5](../clarify.md)) |
+| AC-P1-05 Bắt cá dưới nước: đàn gần nhất, đủ yield, cooldown 30 tick; thiếu chỗ → `hold_full`, không đặt cooldown, không thử đàn khác | test hộp đen | `test_gather_lat2` l2_09–l2_16 | đạt (đã chốt theo TICKET-02, [clarify #5](../clarify.md)) |
 | AC-P1-06 Cập bến xét trước hái; hết giờ thì giữ giỏ; hái/bắt ở bước cuối vẫn vào kho | test + chạy trọn ca | `test_time_ends_gather_and_keeps_hold`, l2_06; [`determinism-exitcodes.txt`](../proof/phase-1/determinism-exitcodes.txt) §2 (`reason: time` ở tick 10800) | đạt |
 | AC-P1-07 6 đàn cá mặc định đứng yên (có cả hai loài) | test hộp đen | l2_16 | đạt (giả định [clarify #4](../clarify.md)) |
 
