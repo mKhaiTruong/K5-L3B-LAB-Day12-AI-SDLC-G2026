@@ -1,0 +1,1 @@
+{"gather": {"random_fish": false, "player": {"pos": [2, 0]}, "hold": [{"id": "I1", "kind": "ca_loc", "fresh": 100}, {"id": "I2", "kind": "bong_sung", "fresh": 100}, {"id": "I3", "kind": "bong_sung", "fresh": 100}]}, "quan": {"random_customers": false, "time_left_ticks": 5}}
