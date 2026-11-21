@@ -22,7 +22,7 @@ def it(i, kind="ca_linh", fresh=100):
 
 class Units(unittest.TestCase):
     def test_contract_v12_rates(self):
-        self.assertEqual(load_contract()["contract_version"], "1.2")
+        self.assertEqual(load_contract()["contract_version"], "1.3")
         self.assertEqual((CFG.gather_per_tick, CFG.quan_per_tick, CFG.initial, CFG.spoiled_below),
                          (2, 1, 24000, 7200))  # 0.5/s, 0.25/s, 100, 30 với 240 đơn vị/điểm
 
