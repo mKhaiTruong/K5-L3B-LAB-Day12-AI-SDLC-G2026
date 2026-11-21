@@ -42,7 +42,7 @@
 | AC-P3-16 Regression P1/P2 với contract v1.2; test đổi có ghi lý do | toàn bộ test | `tests-full.txt` **189/189**; fixture đổi sang cá thể (lý do trong commit PR #23, #26 và mục "Cách cập nhật fixture" ở `CHANGELOG.md`) | đạt |
 | AC-P3-17 Hợp đồng + changelog cập nhật breaking change | đọc | `docs/contracts/README.md` (v1.2), `docs/contracts/inventory.sample.json`, `CHANGELOG.md` | đạt |
 | AC-P3-18 Ghi chép: clarify, ai-usage-log, retro | đọc | `docs/clarify.md` #24–#30, `docs/retro.md` Phase 3, `docs/ai-usage-log.md` (P3 đủ Khuê, Khánh, Phong) | đạt |
-| AC-P3-19 Tag `phase-3` trỏ tới commit bàn giao trên `main` | `git tag` | — | chưa |
+| AC-P3-19 Tag `phase-3` trỏ tới commit bàn giao trên `main` | `git tag` | `phase-3` → `68bcc86` (merge PR #22 vào `main`, 189/189 OK) | đạt |
 
 ## Đánh giá ngắn
 - **Đạt:** toàn bộ lõi headless Phase 3: kho cá thể + độ tươi ở gather, quán, day; giữ chỗ theo id, giữ lại khi ươn, giá theo độ tươi; smoke bàn giao kho theo PRD, tất định; regression 189/189.

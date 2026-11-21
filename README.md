@@ -12,7 +12,7 @@ Game 2D quản lý quán ăn miền Tây. Buổi sáng Út Sen lặn bắt cá, 
 
 ## Chạy từ clone sạch (macOS / Linux, 3 lệnh)
 
-Chỉ cần Python 3, không phải `pip install` vì code chỉ dùng thư viện chuẩn.
+**Yêu cầu môi trường:** Python ≥ 3.10 có lệnh `python3`, một trình duyệt (Chrome / Firefox / Safari). Không cần `pip install`, vì code chỉ dùng thư viện chuẩn. Không cần build (`build_cmd` = `true`).
 
 ```bash
 git clone https://github.com/mKhaiTruong/K5-L3B-LAB-Day12-AI-SDLC-G2026.git
@@ -31,15 +31,26 @@ python3 -m chonoi.live --mode quan --inventory kho.json         # buổi tối: 
 
 Thêm `--seed N` để đổi lượt khách và `--port N` để đổi cổng.
 
-### Chạy headless (Test Contract v1.0, dùng để chấm tự động)
+### Chạy headless (Test Contract v1.3, dùng để chấm tự động)
 
 ```bash
 python3 -m chonoi.headless --mode gather --seed 42 --scenario dock.json --inputs dock-inputs.json \
   --ticks 1 --out gather.jsonl --inventory-out catch.json
 python3 -m chonoi.headless --mode quan --seed 42 --inventory catch.json --ticks 0 --out quan.jsonl
+python3 -m chonoi.headless --mode day --seed 42 --days 5 --ticks 200000 --out day.jsonl   # trọn 5 Ngày gather → quan → shop
 ```
 
-Trong đó `dock.json` là `{"gather":{"hold":["ca_loc","bong_sung","bong_sung"]}}` và `dock-inputs.json` là `{"frames":[{"tick":0,"interact":true}]}`. Kết quả: `catch.json` = `{"items":{"bong_sung":2,"ca_loc":1}}`, và snapshot quán ở tick 0 có đúng `stock` đó. Các cờ đầy đủ ở PRD-0 mục B; `headless_cmd` khai trong [`game.contract.json`](game.contract.json).
+Trong đó `dock.json` là `{"gather":{"hold":[{"id":"I1","kind":"ca_linh","fresh":100}],"random_fish":false,"monsters":[]}}` và `dock-inputs.json` là `{"frames":[{"tick":0,"interact":true}]}`. Kết quả: `catch.json` = `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99166…}]}` (hao 1 bước), và snapshot quán ở tick 0 có đúng cá thể đó trong `stock`. Các cờ đầy đủ ở PRD-0 mục B; `headless_cmd` khai trong [`game.contract.json`](game.contract.json).
+
+### Benchmark và soak (TICKET-04)
+
+```bash
+python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json   # bench_cmd: cảnh lặn có render, 1280×720, làm nóng 3 s
+python3 -m chonoi.soak --seed 7 --days 10 --out soak.json          # soak_cmd: 10 Ngày headless, kế hoạch D1–D5 lặp ở Ngày 6–10
+```
+
+- `bench.json`: `{avg_fps, p1_low_fps, frames, measured_s, load_ms}`.
+- `soak.json`: `{days, days_completed, crashes, results[]{day, earned, reputation, score}, duration_s}`. Bot của soak đứng yên ở bến, bấm `shop_done` ngay khi vào Shop, nên `earned` = 0. Soak kiểm độ bền (không crash, chạy đủ Ngày, tất định), không kiểm cách chơi giỏi.
 
 ## Điều khiển
 
@@ -90,17 +101,22 @@ PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; $env:PYTHONPATH = "tests;."; $env:PYTHONUTF8 = "1"; python3 -m unittest discover -s tests -v
 ```
 
-Bộ test gồm: smoke hộp đen theo Test Contract (`test_smoke_p1.py`), luật buổi sáng (`test_gather_lat1.py`: oxy, ngạt, ngất · `test_gather_lat2.py`: hái, bắt cá), luật quán (`test_quan.py`), kiểm scenario mã 2 (`test_scenario_gather.py`, `test_scenario_quan.py`), cửa sổ thử (`test_live.py`), khung Python (`test_python_starter_units.py`), danh sách nhóm (`test_team_check.py`).
+Bộ test gồm:
+- smoke hộp đen theo Test Contract: `test_smoke_p1.py`
+- buổi sáng: `test_gather_lat1.py` (oxy, ngạt, ngất), `test_gather_lat2.py` (hái, bắt cá), `test_gather_fish.py` (cá bơi), `test_gather_monsters.py` + `test_monsters.py` (Cá Sấu), `test_gather_fresh.py` (độ tươi)
+- quán và vòng Ngày: `test_quan.py`, `test_day.py`
+- contract v1.2 (kho cá thể): `test_fresh_v12.py`; soak (v1.3): `test_soak.py`
+- kiểm scenario mã 2: `test_scenario_gather.py`, `test_scenario_quan.py`, `test_scenario_v11.py`
+- cửa sổ thử, khung, nhóm: `test_live.py`, `test_python_starter_units.py`, `test_team_check.py`
 
-## Hợp đồng file kho (sáng → tối)
+## Hợp đồng file kho (sáng → tối, v1.2)
 
 ```json
-{"items": {"<kind>": <số nguyên ≥ 0>}}
+{"items": [{"id": "I1", "kind": "ca_loc", "fresh": 100}, ...]}
 ```
 
-- `kind` ∈ `ca_loc`, `ca_linh`, `bong_dien_dien`, `bong_sung`. Bỏ khóa có lượng 0; kho rỗng là `{"items":{}}`.
-- Ví dụ hợp lệ: `{"items":{"bong_sung":2,"ca_loc":1}}`.
-- Buổi sáng ghi đúng một lần khi kết thúc (cập bến, hết giờ, hoặc ngất thì ghi kho rỗng). Buổi tối đọc lúc khởi tạo; sai schema thì thoát mã 2.
+- Mỗi cá thể có đúng 3 khóa `id` (không trùng), `kind` (thuộc danh mục contract), `fresh` ∈ [0, 100]. Hàng ươn (`fresh < 30`) vẫn hợp lệ. Kho rỗng là `{"items":[]}`.
+- Buổi sáng ghi đúng một lần khi kết thúc (cập bến, hết giờ, hoặc ngất thì ghi kho rỗng). Buổi tối đọc lúc khởi tạo. Sai schema hoặc kho đếm kiểu cũ `{"items":{kind:n}}` thì thoát mã 2.
 
 Chi tiết schema, giao diện sim ↔ UI và bảng sự kiện: [`docs/contracts/README.md`](docs/contracts/README.md).
 
@@ -108,14 +124,15 @@ Chi tiết schema, giao diện sim ↔ UI và bảng sự kiện: [`docs/contrac
 
 Chưa có ở Phase 1: nhóm làm lõi đúng trước theo PRD-0. Khi thêm, phần sáng tạo sẽ được ghi ở đây kèm bằng chứng lõi vẫn đúng (tắt ở headless).
 
-## Hạn chế đã biết (Phase 1)
+## Hạn chế đã biết (v1.0.0)
 
-- HUD buổi tối in `stock` là tồn vật lý, **đã gồm phần khách đang giữ chỗ**, nên chưa đúng "kho khả dụng" theo PRD. Ví dụ: kho có 3 cá lóc, khách gọi cá lóc nướng trui, HUD vẫn hiện "Cá lóc×3" thay vì 2. Snapshot và luật vẫn đúng PRD-0 mục D. Đã báo Integrator; sửa ở `chonoi/web/index.html` (file khung).
-- Hai giả định đang chờ Anh Năm xác nhận ([`docs/clarify.md`](docs/clarify.md) #4, #5): `random_fish: true` = 6 đàn `fish_initial` đứng yên; bắt cá khi giỏ thiếu chỗ thì không đặt hồi chiêu.
+- Cửa sổ chơi (`chonoi.live`) chỉ có mode `gather` và `quan`. Vòng trọn Ngày (`day`, Shop, nâng cấp, pause) chỉ chạy headless; chưa có màn menu / DayIntro / DayResult / Summary.
+- Bot soak không kiếm tiền (`earned` = 0), chỉ kiểm độ bền.
+- Một số luật là giả định của nhóm, chưa được xác nhận (xem [`docs/clarify.md`](docs/clarify.md)): đơn vị tươi 240 / điểm và làm tròn 3 chữ số (#27, #29), giữ lại khi hàng ươn (#25), kho không mang sang Ngày sau (#26).
 
 ## Tài liệu của nhóm
 
-[`TEAM.md`](TEAM.md) · [`AGENTS.md`](AGENTS.md) · [`docs/plan/phase-1.md`](docs/plan/phase-1.md) · [`docs/verification/phase-1.md`](docs/verification/phase-1.md) · [`docs/clarify.md`](docs/clarify.md) · [`docs/ai-usage-log.md`](docs/ai-usage-log.md) · [`docs/STARTER.md`](docs/STARTER.md) (chi tiết khung Python)
+[`TEAM.md`](TEAM.md) · [`AGENTS.md`](AGENTS.md) · [`CHANGELOG.md`](CHANGELOG.md) · [`docs/contracts/README.md`](docs/contracts/README.md) · [`docs/verification/`](docs/verification/) (phase 1–4) · [`docs/clarify.md`](docs/clarify.md) · [`docs/retro.md`](docs/retro.md) · [`docs/ai-usage-log.md`](docs/ai-usage-log.md) · [`docs/STARTER.md`](docs/STARTER.md) (chi tiết khung Python)
 
 ---
 
